@@ -1,45 +1,24 @@
 import turtle
 import random
 import math
+from config import *
 
-# constants
-BG_PIC  = 'space.gif'
-ROCKET = 'rocketship.gif'
-DSTAR  = 'deathstar.gif'
-WIDTH  = 1000
-HEIGHT = 500
-FONT = ('Arial', 14, 'bold')
-SCORE_POS = (100,160)
-ANGLE = 4
-SHOTS_TIL_JAM = 5
-CANNONBALL_SIZE = (0.2,0.2)
-CANNONBALL_SPEED = 20 
-BULLETRANGE = 200
-SHIPSPEED = 5
-ALTITUDE = 80
-MAX_X = 120
-DELAY = {'rocketship': 20,  'cannonballs': 20} #milliseconds
-SCORE = {'rocketship': 1, 'deathstar':10}
-
-#global vars
-score = 0
-shots = 0 
-running = True #if runnings becomes false, the game is over
-# screen
-screen = turtle.Screen()
-screen.title('Fun with Turtle')
-screen.setup(width = WIDTH, height = HEIGHT)
-screen.bgpic(BG_PIC)
-screen.addshape(ROCKET)
-screen.addshape(DSTAR)
+def game_screen(title ='Fun with Turtle' ):
+    window = turtle.Screen()
+    window.title(title)
+    window.setup(width = WIDTH, height = HEIGHT)
+    window.bgpic(BG_PIC)
+    window.addshape(ROCKET)
+    window.addshape(DSTAR)
+    return window
 
 # get new turtles
-def new_turtle(size=(1,1), shape='classic', alpha=0, color=('black','black'), speed=0, pendown=False, pos=(0,0), hide=False):
+def new_turtle(size=(1,1), shape='classic',  angle=0, color=('black','black'), speed=0, pendown=False, pos=(0,0), hide=False):
     t=turtle.Turtle(shape)
     t.turtlesize(*size)
     t.speed(speed)
     t.color(*color)
-    t.left(alpha)
+    t.left( angle)
    
     t.penup()
     t.goto(*pos)
@@ -61,80 +40,112 @@ def shoot():
     if  shots > SHOTS_TIL_JAM:
         return
     shots += 1
-    t=ct.clone()
-    t.turtlesize(*CANNONBALL_SIZE)
-    t.shape('circle')
-    cts.append(t)
+    t = new_turtle(angle=cannon.heading(), size= CANNONBALL_SIZE, shape='circle', color=('red','yellow'), )
+    cannonBalls.append(t)
 
-def unjam():
+def reload():
     global shots
     shots=0
 
 def write_score():
-    wt.undo()
-    wt.write(score,font=FONT)
+    writer.undo()
+    writer.write(score, font=FONT)
 
 def is_close(x,y, err=10):
     return abs(x-y) < err
 
-def out_of_square(x,y, width=BULLETRANGE):
-    return max(abs(x),abs(y)) > width/2
+def out_of_square(x,y, dist=BULLETRANGE):
+    return math.sqrt(x**2+y**2) > dist
 
-def move_cannonballs():
+def cannonball_loop():
     """update screen"""
     global score
-    for t in cts:
+
+#    if  block[1]: 
+#        print('block 1')
+#        return
+#    block[1] = True
+ 
+    for t in cannonBalls:
         t.forward(CANNONBALL_SPEED)
-        if  is_close(t.pos(),rt.pos()): # rocketship hit
+
+        if  is_close(t.pos(),rocket.pos()): # rocket is hit
             score+= SCORE['rocketship']
-            rt.goto(-MAX_X,ALTITUDE)
-        if  is_close(t.pos(), dt.pos()):
+            rocket.goto(-MAX_X, ALTITUDE)
+        if  is_close(t.pos(), deathstar.pos()): # deathstar is hit
             score+= SCORE['deathstar']
-            dt.goto(rand_pos())
-        if  out_of_square(*t.pos()):
-            cts.remove(t)
+            deathstar.goto(rand_pos())
+        if  out_of_square(*t.pos()): 
+            cannonBalls.remove(t)
+            t.clear()
+            t.hideturtle()
             del t
    
     write_score()
+    screen.update()
+
     if  running:
-        turtle.ontimer(move_cannonballs,DELAY['cannonballs'])
-   
-def move_rocket():
-    """move rocketship"""
-    rt.forward(SHIPSPEED)
-    if  rt.xcor() > MAX_X:
-        rt.goto(-MAX_X, ALTITUDE)
+        turtle.ontimer(cannonball_loop, DELAY['cannonballs'])
+
+def rocket_loop():
+    """move rocketship"""  
+
+    rocket.forward(SHIPSPEED)
+    if  rocket.xcor() > MAX_X:
+        rocket.goto(-MAX_X, ALTITUDE)
     if  running:
-        turtle.ontimer(move_rocket,DELAY['rocketship'])
+        turtle.ontimer(rocket_loop, DELAY['rocketship'])
+
+    screen.update()
 
 def game_over():
     """ends the game"""
     global running
-    running=False
-    ct.write('Game over!',font=FONT)
+    running=False 
+    t = new_turtle(color=('red',), hide=True)
+    t.write('Game over!',font=FONT)
 
-# cannon turtle, deathstar turtle, rocketship turtle, writer turtle
-ct = new_turtle(alpha=90, color=('red','yellow'))
-dt = new_turtle(shape=DSTAR, pos=rand_pos())
-rt = new_turtle(shape=ROCKET, pos=(-MAX_X, ALTITUDE))
-wt = new_turtle(color=('magenta',), hide=True, pos=SCORE_POS)
+def start_loops(time):
+    '''run game loop time seconds'''
+    turtle.ontimer(game_over, time *1000)
+    cannonball_loop()
+    rocket_loop()
+###################
+#
+# Main
+#
+##################
 
-wt.write('Score:',font=FONT)
-wt.forward(60)
-wt.write(0, font=FONT)
+#global vars
+score = 0
+shots = 0 
+running = True # if runnings becomes false, the game is over
+cannonBalls = []
 
-# list of cannonballturtles
-cts=[]
-running = True
+# screen
+screen = game_screen()
+# write Score: 0
+writer     = new_turtle(color=('magenta',), hide=True, pos=SCORE_POS)
+writer.write('Score: ', move=True, font=FONT)
+writer.write(0, font=FONT)
+
+# create turtles
+cannon     = new_turtle(angle=90, color=('red','yellow'))
+deathstar  = new_turtle(shape=DSTAR,  pos=rand_pos())
+rocket     = new_turtle(shape=ROCKET, pos=(-MAX_X, ALTITUDE))
+
+
 # keyboard bindings
-actions = {'Down': unjam, 'Right': lambda: ct.right(ANGLE), 'Left': lambda: ct.left(ANGLE), 'space': shoot}
+actions = {'Down': reload, 'Right': lambda: cannon.right(ANGLE), 'Left': lambda: cannon.left(ANGLE), 'space': shoot}
 screen.listen()
+turtle.tracer(0)
+
+# register callbacks
 for key in ['Down', 'Left', 'Right', 'space']:
     screen.onkeypress(actions[key], key)
     
+# let game last TIME seconds
+start_loops(time=TIME)
 
-move_cannonballs()
-move_rocket()
-
-turtle.ontimer(game_over,10000)
+    
 turtle.mainloop()
